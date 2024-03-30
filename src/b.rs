@@ -70,7 +70,6 @@ impl Node {
                         stream.read_to_string(&mut buffer).unwrap();
 
                         if &buffer[0..7] == "REQUEST" {
-
                             if unsafe { REPLY_FLAG.is_none() } {
                                 /* send REPLY message */
                                 let mut stream_clone = stream.try_clone().unwrap();
@@ -84,7 +83,8 @@ impl Node {
                                 let reply_flag = unsafe { REPLY_FLAG.unwrap() };
 
                                 /*get lamport_clock of reply_flag */
-                                let reply_flag_lamport_clock =reply_flag.to_string().parse::<u32>().unwrap();
+                                let reply_flag_lamport_clock =
+                                    reply_flag.to_string().parse::<u32>().unwrap();
 
                                 /*if sender_lamport_clock is greater than  reply_flag_lamport_clock*/
                                 if sender_lamport_clock > reply_flag_lamport_clock {
@@ -97,35 +97,33 @@ impl Node {
                                     stream_clone.write(&b"INQUIRE"[..]).unwrap();
                                 }
                             }
-                        }
-                        else if &buffer[0..7] == "INQUIRE" {
+                        } else if &buffer[0..7] == "INQUIRE" {
                             /* if FAIL message */
-                            if unsafe {FAIL_FLAG.is_some() && (YIELD_FLAG.is_some()  && REPLY_FLAG.is_none()) } {
+                            if unsafe {
+                                FAIL_FLAG.is_some()
+                                    && (YIELD_FLAG.is_some() && REPLY_FLAG.is_none())
+                            } {
                                 /* send YIELD message */
                                 let mut stream_clone = stream.try_clone().unwrap();
                                 stream_clone.write(&b"YIELD"[..]).unwrap();
                             }
-                        }
-                        else if &buffer[0..5] == "YIELD" {
+                        } else if &buffer[0..5] == "YIELD" {
                             /* send REPLY message */
                             let mut stream_clone = stream.try_clone().unwrap();
                             stream_clone.write(&b"REPLY"[..]).unwrap();
                             /* add sender to REQUEST_QUEUE */
                             unsafe { REQUEST_QUEUE.push(self.addr) };
-                        }
-                        else if &buffer[0..6] == "FAILED" {
+                        } else if &buffer[0..6] == "FAILED" {
                             /* get sender address */
                             let sender = unsafe { FAIL_FLAG.unwrap() };
                             /* FAIL_FLAG  from sender */
                             unsafe { FAIL_FLAG = Some(sender) };
-
-                        }else if &buffer[0..5] == "REPLY" {
+                        } else if &buffer[0..5] == "REPLY" {
                             /* get sender address */
                             let sender = unsafe { REPLY_FLAG.unwrap() };
                             /* REPLY_FLAG  from sender */
                             unsafe { REPLY_FLAG = Some(sender) };
-                        }
-                        else if &buffer[0..7] == "RELEASE" {
+                        } else if &buffer[0..7] == "RELEASE" {
                             if !unsafe { REQUEST_QUEUE.is_empty() } {
                                 /* send REPLY message */
                                 let mut stream_clone = stream.try_clone().unwrap();
@@ -138,11 +136,24 @@ impl Node {
                                 /* set REPLY_FLAG to false */
                                 unsafe { REPLY_FLAG = None };
                             }
-                            
                         }
                     }
                 }
             }
         }
     }
+
+    fn sendrelease_cs(&self) {
+        for node_addr in &self.request_set {
+            if let Ok(mut stream) = TcpStream::connect(*node_addr) {
+                self.lamport_clock += 1;
+                stream.write(b"RELEASE");
+                // send Sender lamport clock also
+                stream.write(&self.lamport_clock.to_be_bytes());
+                // send terminating character
+                stream.write(&b"\n"[..]);
+            }
+        }
+    }
+    
 }
