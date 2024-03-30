@@ -143,17 +143,38 @@ impl Node {
         }
     }
 
-    fn sendrelease_cs(&self) {
+    fn sendrelease_cs(&mut self) {
         for node_addr in &self.request_set {
             if let Ok(mut stream) = TcpStream::connect(*node_addr) {
                 self.lamport_clock += 1;
-                stream.write(b"RELEASE");
+
+                stream.write(b"RELEASE").unwrap();
                 // send Sender lamport clock also
-                stream.write(&self.lamport_clock.to_be_bytes());
+                stream.write(&self.lamport_clock.to_be_bytes()).unwrap();
                 // send terminating character
-                stream.write(&b"\n"[..]);
+                stream.write(&b"\n"[..]).unwrap();
             }
         }
     }
-    
 }
+
+fn init_sqrt(params: &Params) -> f64 {
+    let sqrt_n = f64::sqrt(params.n as f64);
+    return sqrt_n;
+}
+
+fn alpha_dist(params: &Params) -> f64 {
+    let mut rng = rand::thread_rng();
+    let exp_dist = Exp::new(1.0 / (params.alpha as f64)).unwrap(); // Set alpha to the desired average time
+    let sleep_time = exp_dist.sample(&mut rng);
+    return sleep_time;
+}
+
+fn beta_dist(params: &Params) -> f64 {
+    let mut rng = rand::thread_rng();
+    let exp_dist = Exp::new(1.0 / (params.beta as f64)).unwrap(); // Set beta to the desired average time
+    let sleep_time = exp_dist.sample(&mut rng);
+    return sleep_time;
+}
+
+
